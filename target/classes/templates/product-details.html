@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${product.title + ' | Toy Land 🧸'}">Toy Land 🧸</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light navbar-toy sticky-top">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}">Toy Land 🧸</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#toyNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="toyNav">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item"><a class="nav-link" th:href="@{/}">Меню</a></li>
+                <li class="nav-item" sec:authorize="hasRole('USER')"><a class="nav-link" th:href="@{/orders}">Мои заказы</a></li>
+                <li class="nav-item" sec:authorize="hasRole('ADMIN')"><a class="nav-link" th:href="@{/admin}">Админ панель</a></li>
+            </ul>
+            <ul class="navbar-nav align-items-center gap-2">
+                <li class="nav-item" sec:authorize="!isAuthenticated()"><a class="nav-link" th:href="@{/login}"><i class="bi bi-person"></i> Login</a></li>
+                <li class="nav-item" sec:authorize="!isAuthenticated()"><a class="nav-link" th:href="@{/register}">Зарегистрироваться</a></li>
+                <li class="nav-item" sec:authorize="hasRole('USER')">
+                    <a class="nav-link position-relative" th:href="@{/cart}">
+                        <i class="bi bi-cart2"></i>
+                        <span class="badge bg-danger rounded-pill" th:if="${cartItemCount > 0}" th:text="${cartItemCount}">0</span>
+                    </a>
+                </li>
+                <li class="nav-item" sec:authorize="isAuthenticated()">
+                    <span class="nav-link d-flex align-items-center gap-1">
+                        <i class="bi bi-stars"></i>
+                        <span sec:authentication="name"></span>
+                    </span>
+                </li>
+                <li class="nav-item" sec:authorize="isAuthenticated()">
+                    <form th:action="@{/logout}" method="post">
+                        <button class="btn btn-sm btn-outline-light rounded-pill px-3">Logout</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<main class="toy-container" th:with="returnUrl=@{/products/{id}(id=${product.id})}">
+    <a th:href="@{/}" class="btn btn-outline-toy mb-3">
+        <i class="bi bi-arrow-left-circle"></i> Назад к покупкам
+    </a>
+
+    <div th:if="${success}" class="alert alert-success alert-toast d-flex align-items-center gap-2">
+        <i class="bi bi-check-circle-fill"></i>
+        <span th:text="${success}">Added!</span>
+    </div>
+    <div th:if="${error}" class="alert alert-danger alert-toast d-flex align-items-center gap-2">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span th:text="${error}">Oops</span>
+    </div>
+
+    <section class="product-detail" th:object="${product}">
+        <div>
+            <img th:src="${product.imageUrl != null ? '/images/' + product.imageUrl : '/img/placeholder-toy.svg'}"
+                 th:alt="*{title}">
+            <div class="d-flex gap-2 mt-3">
+                <img th:each="thumb : ${#numbers.sequence(1,3)}"
+                     class="img-thumbnail flex-fill"
+                     style="border-radius: 18px; max-height: 110px;"
+                     th:src="${product.imageUrl != null ? '/images/' + product.imageUrl : '/img/placeholder-toy.svg'}"
+                     th:alt="${'Preview ' + thumb}">
+            </div>
+        </div>
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <div class="category-chip" th:if="*{category != null}" th:text="*{category.name}">Category</div>
+                <span class="stock-chip" th:classappend="*{stock != null && stock > 0} ? ' in' : ' out'">
+                    <i class="bi bi-check2-circle" th:if="*{stock != null && stock > 0}"></i>
+                    <i class="bi bi-slash-circle" th:if="*{stock == null || stock <= 0}"></i>
+                    <span th:text="*{stock != null && stock > 0 ? 'In stock' : 'Brewing more magic'}">Status</span>
+                </span>
+            </div>
+            <h1 th:text="*{title}">Toy title</h1>
+            <p class="product-rating text-muted small">⭐ Toy Land </p>
+            <p class="toy-price" th:text="${#numbers.formatDecimal(product.price, 1, 2) + 'тг'}">$0.00</p>
+            <p th:text="*{description != null ? description : 'This sweet toy is waiting to spark new adventures.'}">
+                Description
+            </p>
+            <ul class="list-unstyled text-muted">
+                <li><i class="bi bi-box-seam"></i> Доставка в течение 24-х часов</li>
+                <li><i class="bi bi-shield-heart"></i> Безопасность превыше всего</li>
+                <li><i class="bi bi-arrow-repeat"></i> Возврат в течение 14-ти дней</li>
+            </ul>
+
+            <div sec:authorize="hasRole('USER')">
+                <form th:action="@{/cart/add}" method="post" class="row g-3 align-items-end">
+                    <input type="hidden" name="productId" th:value="*{id}">
+                    <input type="hidden" name="returnUrl" th:value="${returnUrl}">
+                    <div class="col-12 col-md-4">
+                        <label for="qty" class="form-label fw-bold">Quantity</label>
+                        <input id="qty"
+                               type="number"
+                               class="form-control form-control-lg"
+                               name="quantity"
+                               min="1"
+                               value="1"
+                               th:attr="max=${product.stock != null ? product.stock : 10}">
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-toy btn-lg w-100">
+                            <i class="bi bi-cart-plus-fill"></i> Add to cart
+                        </button>
+                    </div>
+                </form>
+                <!-- TODO: connect wishlist endpoint -->
+                <button type="button" class="wishlist-btn w-100 mt-3" disabled>
+                    Wishlist ❤️ <span class="todo-tag">todo</span>
+                </button>
+            </div>
+
+            <div sec:authorize="!isAuthenticated()" class="mt-4">
+                <a class="btn btn-toy w-100" th:href="@{/login}">Войдите чтобы совершить покупку</a>
+            </div>
+        </div>
+    </section>
+
+    <section th:if="${suggestedProducts != null && !suggestedProducts.isEmpty()}">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Вам также может понравиться:</h2>
+            <a th:href="@{/}" class="btn btn-outline-toy">Посмотреть все</a>
+        </div>
+        <div class="product-grid">
+            <article th:each="toy : ${suggestedProducts}" class="product-card">
+                <a th:href="@{/products/{id}(id=${toy.id})}" class="d-block mb-2">
+                    <img class="product-image"
+                         th:src="${toy.imageUrl != null ? '/images/' + toy.imageUrl : '/img/placeholder-toy.svg'}"
+                         th:alt="${toy.title}">
+                </a>
+                <div class="category-chip mb-2" th:if="${toy.category != null}" th:text="${toy.category.name}">Category</div>
+                <h3 class="product-title" th:text="${toy.title}">Toy</h3>
+                <p class="toy-price" th:text="${#numbers.formatDecimal(toy.price, 1, 2) + 'тг' }">$0.00</p>
+                <p class="product-rating text-muted small">Рекомендуем</p>
+                <div class="toy-card-actions" sec:authorize="hasRole('USER')">
+                    <form th:action="@{/cart/add}" method="post">
+                        <input type="hidden" name="productId" th:value="${toy.id}">
+                        <input type="hidden" name="quantity" value="1">
+                        <input type="hidden" name="returnUrl" th:value="${returnUrl}">
+                        <button type="submit" class="btn btn-toy w-100">
+                            <i class="bi bi-cart-plus"></i> Add to cart
+                        </button>
+                    </form>
+                </div>
+                <div sec:authorize="!isAuthenticated()" class="mt-auto">
+                    <a class="btn btn-outline-toy w-100" th:href="@{/login}">Войдите чтобы добавить в корзину</a>
+                </div>
+                <a th:href="@{/products/{id}(id=${toy.id})}" class="btn btn-outline-toy w-100 mt-2">Описание</a>
+            </article>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <p>Дамир Нурушев все права защищены ©</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+
